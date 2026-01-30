@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import EventDetails from "@/components/EventDetails";
 import HeroAnimation from "@/components/HeroAnimation ";
 
+
+
 const EventDetailsPage = async ({ params }: { params: Promise<{ slug: string }> }) => {
     const slug = params.then((p) => p.slug);
 
