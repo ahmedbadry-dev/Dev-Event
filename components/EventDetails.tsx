@@ -7,19 +7,48 @@ import { getSimilarEventsBySlug } from "@/lib/actions/event.actions";
 import Image from "next/image";
 import { notFound } from "next/navigation"
 import EventCard from "./EventCard";
+import { cacheLife } from "next/cache";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 
 const EventDetails = async ({ params }: { params: Promise<string> }) => {
     'use cache'
+    cacheLife('hours');
     const slug = await params;
-    const request = await fetch(`${BASE_URL}/api/events/${slug}`)
-    const { event: { description, image, overview, date, time, location, mode, agenda, audience, tags, organizer } } = await request.json()
-    const booking = 10
-    if (!description) return notFound()
+
+    let event;
+    try {
+        const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
+            next: { revalidate: 60 }
+        });
+
+        if (!request.ok) {
+            if (request.status === 404) {
+                return notFound();
+            }
+            throw new Error(`Failed to fetch event: ${request.statusText}`);
+        }
+
+        const response = await request.json();
+        event = response.event;
+
+        if (!event) {
+            return notFound();
+        }
+    } catch (error) {
+        console.error('Error fetching event:', error);
+        return notFound();
+    }
+
+    const { description, image, overview, date, time, location, mode, agenda, audience, tags, organizer } = event;
+
+    if (!description) return notFound();
+
+    const bookings = 10;
 
     const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
+
     return (
         <section id="event">
             <div className="header">
@@ -62,15 +91,15 @@ const EventDetails = async ({ params }: { params: Promise<string> }) => {
                         <div className="signup-card">
                             <h2>Book Your Spot</h2>
                             {
-                                booking > 0 ? (
+                                bookings > 0 ? (
                                     <p className="text-sm">
-                                        Join {booking} people who have already booked their spot!
+                                        Join {bookings} people who have already booked their spot!
                                     </p>
                                 ) : (
                                     <p className="text-sm">Be the first to book your spot!</p>
                                 )
                             }
-                            <BookEvent />
+                            <BookEvent eventId={event._id} slug={event.slug} />
                         </div>
                     </div>
                 </aside>
